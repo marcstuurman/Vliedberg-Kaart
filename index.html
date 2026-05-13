@@ -362,7 +362,7 @@ async function geocodeAll() {
 let map;
 
 function initMap() {
-  map = L.map('map', { center: [51.6905, 5.2045], zoom: 16, zoomControl: true });
+  map = L.map('map', { center: [51.6895, 5.2055], zoom: 15, zoomControl: true });
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OpenStreetMap © CARTO', maxZoom: 19, subdomains: 'abcd'
   }).addTo(map);
@@ -532,8 +532,11 @@ async function boot() {
   if (results.length > 0) {
     const lats = results.map(r => r.lat);
     const lons = results.map(r => r.lon);
-    map.fitBounds([[Math.min(...lats)-0.001, Math.min(...lons)-0.001],
-                   [Math.max(...lats)+0.001, Math.max(...lons)+0.001]]);
+    map.fitBounds(
+      [[Math.min(...lats)-0.0005, Math.min(...lons)-0.0008],
+       [Math.max(...lats)+0.0005, Math.max(...lons)+0.0008]],
+      { padding: [30, 30], maxZoom: 16 }
+    );
   }
 
   // Mode buttons
