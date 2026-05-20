@@ -235,7 +235,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--ink); color: var(--
     </div>
 
   </div>
-  <div id="map"></div>
+  <div id="map" style="background:#0a0a14;"></div>
 </div>
 
 <div id="legend" style="display:none">
@@ -362,10 +362,34 @@ async function geocodeAll() {
 let map;
 
 function initMap() {
-  map = L.map('map', { center: [51.6895, 5.2055], zoom: 15, zoomControl: true });
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OpenStreetMap © CARTO', maxZoom: 19, subdomains: 'abcd'
-  }).addTo(map);
+  // Hard bounds: restrict map to Noord-Brabant area so tiles never load for the whole world
+  const NL_BOUNDS = L.latLngBounds(
+    [51.60, 5.10],   // southwest corner (ruim om Vliedberg)
+    [51.76, 5.32]    // northeast corner
+  );
+
+  map = L.map('map', {
+    center:       [51.6895, 5.2055],
+    zoom:         15,
+    minZoom:      13,          // niet verder uitzoomen dan de buurt
+    maxZoom:      19,
+    maxBounds:    NL_BOUNDS,   // kaart kan niet verder scrollen dan dit gebied
+    maxBoundsViscosity: 1.0,   // hard stop op de grens
+    zoomControl:  true,
+  });
+
+  // Gebruik een NL-vriendelijke tile mirror die snel laadt
+  const tileLayer = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {
+      attribution: '© OpenStreetMap © CARTO',
+      maxZoom: 19,
+      subdomains: 'abcd',
+      bounds: NL_BOUNDS,   // vraag alleen tiles op binnen dit gebied
+      keepBuffer: 4,       // meer tiles pre-fetchen rondom het zichtbare gebied
+    }
+  ).addTo(map);
+
   layerGroup = L.layerGroup().addTo(map);
 }
 
@@ -532,11 +556,18 @@ async function boot() {
   if (results.length > 0) {
     const lats = results.map(r => r.lat);
     const lons = results.map(r => r.lon);
-    map.fitBounds(
-      [[Math.min(...lats)-0.0005, Math.min(...lons)-0.0008],
-       [Math.max(...lats)+0.0005, Math.max(...lons)+0.0008]],
-      { padding: [30, 30], maxZoom: 16 }
-    );
+    // Snap naar exacte wijk-bounds op basis van echte BAG-coördinaten
+    const swLat = Math.min(...lats) - 0.002;
+    const swLon = Math.min(...lons) - 0.003;
+    const neLat = Math.max(...lats) + 0.002;
+    const neLon = Math.max(...lons) + 0.003;
+    map.fitBounds([[swLat, swLon], [neLat, neLon]], {
+      padding:    [40, 40],
+      maxZoom:    16,
+      animate:    false,    // geen animatie zodat tiles meteen laden
+    });
+    // Forceer tile refresh na bounds-wijziging
+    map.invalidateSize();
   }
 
   // Mode buttons
